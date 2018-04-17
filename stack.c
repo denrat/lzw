@@ -2,25 +2,25 @@
 #include "stack.h"
 
 void
-push(int c, list *l)
+push(int c, stack *st)
 {
     struct node *n = (struct node *)malloc(sizeof(struct node));
     n->value = c;
-    n->next = *l;
+    n->next = *st;
 
-    *l = n;
+    *st = n;
 }
 
 int
-pop(list *l)
+pop(stack *st)
 {
     int c = -1;
 
-    if (!is_empty(*l))
+    if (!is_empty(*st))
     {
-        c = (*l)->value;
-        list *oldn = l;
-        *l = (*l)->next;
+        c = (*st)->value;
+        stack *oldn = st;
+        *st = (*st)->next;
         free_node(*oldn);
     }
 
@@ -28,37 +28,37 @@ pop(list *l)
 }
 
 int
-head(list l)
+head(stack st)
 {
-    return l->value;
+    return st->value;
 }
 
 int
-is_empty(list l)
+is_empty(stack st)
 {
-    return l == NULL;
+    return st == NULL;
 }
 
 void
-free_node(list l)
+free_node(stack st)
 {
-    if (!is_empty(l))
+    if (!is_empty(st))
     {
-        free(l);
+        free(st);
     }
 }
 
 void
-free_list(list *l)
+free_stack(stack *st)
 {
-    list next;
+    stack next;
 
-    while (!is_empty(*l))
+    while (!is_empty(*st))
     {
-        next = (*l)->next;
-        free_node(*l);
-        *l = next;
+        next = (*st)->next;
+        free_node(*st);
+        *st = next;
     }
 
-    *l = NULL;
+    *st = NULL;
 }

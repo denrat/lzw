@@ -76,7 +76,7 @@ emit_code(FILE *dst, FILE *src, int code)
 }
 
 void
-add_dict_entry(dictionary *dict, const char s[], const int length)
+add_dict_entry(dictionary *dict, char s[], int length)
 {
     char *entry = malloc((length + 1) * sizeof(char));
     strcpy(entry, s);
@@ -168,7 +168,7 @@ decode_lzw(FILE *dst, FILE *src)
     triple t;
     int twoints[2];
 
-    list ls = NULL;
+    stack st = NULL;
 
     dictionary *dict = create_dict();
 
@@ -176,26 +176,32 @@ decode_lzw(FILE *dst, FILE *src)
 
     while (nbread = fread(t, sizeof(triple), 1, src), nbread > 0)
     {
+        // Put read values in the stack
         decode_triple(t, &twoints[0], &twoints[1]);
+        push(twoints[1], &st);
+        push(twoints[0], &st);
 
-        push(twoints[1], &ls);
-        push(twoints[0], &ls);
+        printf("[+] Decoding triple: %d %d\n", twoints[0], twoints[1]);
 
-        while (ls)
+        while (st)
         {
-            int v = pop(&ls);
-            printf("%d", v);
+            int v = (int)pop(&st);
+            printf("[*] Next value: %d\t\t", v);
 
+            // Unpack dictionary value if v is not a char
             if (v > 255)
             {
+                printf("\n\t-> Unpacking into ");
                 assert(v - 256 < dict->size);
                 int len = strlen(dict->items[v - 256]);
 
                 while (--len > 0)
                 {
-                    push(dict->items[v - 256][len], &ls);
+                    printf("%d ", dict->items[v - 256][len]);
+                    push(dict->items[v - 256][len], &st);
                 }
 
+                printf("%d ", dict->items[v - 256][0]);
                 v = dict->items[v - 256][0];
             }
 
@@ -203,6 +209,8 @@ decode_lzw(FILE *dst, FILE *src)
 
             fputc(c, dst);
             fputc(c, stdout);
+
+            puts("");
 
             s[length] = (char)c;
             s[++length] = '\0';

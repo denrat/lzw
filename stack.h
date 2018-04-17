@@ -1,18 +1,18 @@
-#ifndef _LINKED_LIST_H
-#define _LINKED_LIST_H
+#ifndef _STACK_H
+#define _STACK_H
 
 typedef struct node {
     int value;
     struct node *next;
-} node, *list;
+} node, *stack;
 
-void push(int, list *);
-int pop(list *);
-int head(list);
+void push(int, stack *);
+int pop(stack *);
+int head(stack);
 
-int is_empty(list);
+int is_empty(stack);
 
-void free_node(list);
-void free_list(list *);
+void free_node(stack);
+void free_stack(stack *);
 
-#endif /* _LINKED_LIST_H */
+#endif /* _STACK_H */
