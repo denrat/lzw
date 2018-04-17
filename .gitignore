@@ -1,0 +1,5 @@
+*.o
+*.dSYM
+lzw
+*.lzw
+*.unlzw
