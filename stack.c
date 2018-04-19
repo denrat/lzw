@@ -1,14 +1,31 @@
 #include <stdlib.h>
+#include <stdio.h>
+
 #include "stack.h"
 
 void
 push(int c, stack *st)
 {
-    struct node *n = (struct node *)malloc(sizeof(struct node));
+    node *n = (node *)malloc(sizeof(node));
     n->value = c;
     n->next = *st;
 
     *st = n;
+}
+
+void
+print_stack(stack st)
+{
+    stack tmp = st;
+
+    printf("[");
+    while (tmp)
+    {
+        printf("%d", tmp->value);
+        tmp = tmp->next;
+        if (tmp) printf(", ");
+    }
+    printf("]\n");
 }
 
 int
@@ -18,10 +35,12 @@ pop(stack *st)
 
     if (!is_empty(*st))
     {
-        c = (*st)->value;
+        c = head(*st);
         stack *oldn = st;
-        *st = (*st)->next;
+        *st = tail(*st);
         free_node(*oldn);
+        printf("taking out %d, now stack is ", c);
+        print_stack(*st);
     }
 
     return c;
@@ -33,6 +52,12 @@ head(stack st)
     return st->value;
 }
 
+stack
+tail(stack st)
+{
+    return st->next;
+}
+
 int
 is_empty(stack st)
 {
@@ -42,7 +67,7 @@ is_empty(stack st)
 void
 free_node(stack st)
 {
-    if (!is_empty(st))
+    if (st)
     {
         free(st);
     }

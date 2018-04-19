@@ -20,7 +20,8 @@ main(int argc, char *argv[])
     {
         src = fopen(argv[2], "r");
         dst = fopen(strcat(argv[2], ".unlzw"), "w");
-        decode_lzw(dst, src);
+        /* decode_lzw(dst, src); */
+        lzw_decode(dst, src);
     }
     else
     {

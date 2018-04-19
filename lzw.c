@@ -2,10 +2,10 @@
 #include "stack.h"
 
 void
-encode_triple(triple t, const int x, const int y)
+encode_triple(triple t, int x, int y)
 {
-    const static int mask_x0 = 0b111111110000;
-    const static int mask_x1 = 0b000000001111;
+    static int mask_x0 = 0b111111110000;
+    static int mask_x1 = 0b000000001111;
 
     // Store 8 left-most bits from x in the first byte of the triple
     t[0] = (x & mask_x0) >> 4;
@@ -13,8 +13,8 @@ encode_triple(triple t, const int x, const int y)
     // in the 4 left-most bits of the middle of the triple
     t[1] = (x & mask_x1) << 4;
 
-    const static int mask_y0 = 0b111100000000;
-    const static int mask_y1 = 0b000011111111;
+    static int mask_y0 = 0b111100000000;
+    static int mask_y1 = 0b000011111111;
 
     // Store 4 left-most bits from y
     // in the 4 left-most bits of the middle of the triple
@@ -24,31 +24,34 @@ encode_triple(triple t, const int x, const int y)
 }
 
 void
-decode_triple(const triple t, int *x, int *y)
+decode_triple(triple t, int *x, int *y)
 {
     *x = (t[0] << 4) | ((t[1] & 0xF0) >> 4);
     *y = t[2] | ((t[1] << 8) & 0xF00);
 }
 
 int
-search_dict(dictionary *dict, char *el)
+search_dict(dictionary *dict, char *el, int length)
 {
     static int index;
 
+    // Check if string only has one character
     if (el[1] == 0)
     {
         return (int)el[0];
     }
 
+    // Compare provided word to dict words
     for (index = 0; index < dict->size; index++)
     {
-        if (!strcmp(el, dict->items[index]))
+        if (length == dict->items_lengths[index]
+                && !strncmp(el, dict->items[index], length))
         {
             return index + 256;
         }
     }
 
-    return -1;
+    return -1; // Not found
 }
 
 void
@@ -78,17 +81,18 @@ emit_code(FILE *dst, FILE *src, int code)
 void
 add_dict_entry(dictionary *dict, char s[], int length)
 {
-    char *entry = malloc((length + 1) * sizeof(char));
-    strcpy(entry, s);
-    /* printf("%d: \"%s\"\n", dict->size, s); */
+    char *entry = malloc(length * sizeof(char));
+    strncpy(entry, s, length);
+    printf("%d\t\"%s\"\n", dict->size + 256, s);
 
     dict->items[dict->size] = entry;
+    dict->items_lengths[dict->size] = length;
 
     dict->size += 1;
 }
 
 dictionary *
-create_dict()
+create_dict(void)
 {
     dictionary *dict;
     dict = (dictionary *)malloc(sizeof(dictionary));
@@ -129,9 +133,9 @@ encode_lzw(FILE *dst, FILE *src)
         // Move next char to end of string
         fputc(c, stdout);
         s[length] = (char)c;
-        s[length + 1] = '\0';
+        s[++length] = '\0';
 
-        int index = search_dict(dict, s);
+        int index = search_dict(dict, s, length);
 
         if (index == -1)
         {
@@ -183,39 +187,43 @@ decode_lzw(FILE *dst, FILE *src)
 
         printf("[+] Decoding triple: %d %d\n", twoints[0], twoints[1]);
 
+        // Get values from the stack as long as they exist
         while (st)
         {
-            int v = (int)pop(&st);
+            print_stack(st);
+            unsigned char c;
+            int v = pop(&st);
             printf("[*] Next value: %d\t\t", v);
 
-            // Unpack dictionary value if v is not a char
+            // Unpack dictionary values if v is not a char
             if (v > 255)
             {
                 printf("\n\t-> Unpacking into ");
                 assert(v - 256 < dict->size);
                 int len = strlen(dict->items[v - 256]);
 
+                // Place the characters
                 while (--len > 0)
                 {
                     printf("%d ", dict->items[v - 256][len]);
-                    push(dict->items[v - 256][len], &st);
+                    push((int)dict->items[v - 256][len], &st);
                 }
 
                 printf("%d ", dict->items[v - 256][0]);
-                v = dict->items[v - 256][0];
+                c = dict->items[v - 256][0];
+            }
+            else
+            {
+                c = v;
             }
 
-            char c = (char)v;
-
             fputc(c, dst);
-            fputc(c, stdout);
+            printf("'%c'\n", c);
 
-            puts("");
-
-            s[length] = (char)c;
+            s[length] = c;
             s[++length] = '\0';
 
-            int index = search_dict(dict, s);
+            int index = search_dict(dict, s, length);
 
             if (index == -1)
             {
@@ -229,4 +237,148 @@ decode_lzw(FILE *dst, FILE *src)
     }
 
     free_dict(&dict);
+}
+
+void
+lzw_decode(FILE *dst, FILE *src)
+{
+    int c; // An integer so it handles EOF
+    char s[BUFSIZ];
+    int length = 0;
+
+    dictionary *dict = create_dict();
+
+    // Get then write decoded characters
+    while (c = next_char_no_stack(src, dict), c != EOF)
+    {
+        fputc(c, dst);
+
+        s[length] = c;
+        s[++length] = '\0';
+
+        int index = search_dict(dict, s, length);
+
+        if (index == -1)
+        {
+            add_dict_entry(dict, s, length);
+
+            s[0] = c;
+            s[1] = '\0';
+            length = 1;
+        }
+    }
+
+    free_dict(&dict);
+}
+
+int // int because EOF is not a char
+next_char(FILE *src, dictionary *dict)
+{
+    static stack st;
+    static triple t;
+    static int ints[2];
+    static size_t nb_read;
+
+    // Exhaust the stack first
+    if (!is_empty(st)) return pop(&st);
+
+    // Load next triple in file
+    nb_read = fread(t, sizeof(triple), 1, src);
+
+    // Nothing being read means the file is exhausted
+    if (nb_read == 0) return EOF;
+
+    // Read values in the triple
+    decode_triple(t, &ints[0], &ints[1]);
+
+    // Push values to the stack
+    for (int i = 0; i < 2; i++)
+    {
+        int x = ints[i];
+
+        // Check if value is a char or a dict key
+        if (x > 255)
+        {
+            int index = x - 256;
+
+            // Push all characters from the dict item
+            for (int j = dict->items_lengths[index] - 1; j >= 0; j--)
+            {
+                push(dict->items[index][j], &st);
+            }
+        }
+        else
+        {
+            // Push char to stack
+            push(x, &st);
+        }
+    }
+
+    return pop(&st);
+}
+
+int
+next_char_no_stack(FILE *src, dictionary *dict)
+{
+    enum state { LZW_EMPTY, LZW_FROM_DICT, LZW_FROM_TRIPLE };
+    static enum state current_state;
+
+    static triple t;
+    static int ints[2];
+    static int i, j;
+    static char *word;
+
+    // Manage empty buffer
+    if (current_state == LZW_EMPTY)
+    {
+        // Read from file
+        int nbread = fread(t, sizeof(triple), 1, src);
+
+        // Check reading success
+        if (nbread == 0)
+        {
+            return EOF;
+        }
+
+        i = 0;
+        decode_triple(t, &ints[0], &ints[1]);
+        current_state = LZW_FROM_TRIPLE;
+    }
+
+    // Read the triple decoded from src
+    if (current_state == LZW_FROM_TRIPLE)
+    {
+        // Check ints[i] is a character
+        if (ints[i] < 256)
+        {
+            // Get ready to read next triple if necessary
+            if (i == 1)
+            {
+                current_state = LZW_EMPTY;
+            }
+
+            /* printf("%d", ints[i]); */
+            return ints[i++];
+        }
+
+        // ints[i] is a dictionary key
+        /* printf("dict->%d", ints[i]); */
+        word = dict->items[ints[i++] - 256];
+        current_state = LZW_FROM_DICT;
+    }
+
+    // Read characters from a dictionary word
+    if (current_state == LZW_FROM_DICT)
+    {
+        // Check if the end of the word is reached
+        if (j < dict->items_lengths[ints[i]])
+        {
+            return word[j++];
+        }
+        else
+        {
+            j = 0;
+            current_state = (i < 2) ? LZW_FROM_TRIPLE : LZW_EMPTY;
+        }
+    }
 }

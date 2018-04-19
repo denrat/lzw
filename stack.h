@@ -9,6 +9,9 @@ typedef struct node {
 void push(int, stack *);
 int pop(stack *);
 int head(stack);
+stack tail(stack);
+
+void print_stack(stack);
 
 int is_empty(stack);
 
