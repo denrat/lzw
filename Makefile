@@ -2,29 +2,28 @@ SHELL = bash
 
 CC = clang
 CFLAGS = -Wall -std=c99 -g
-LZWFUNC = lzw.o
-STACK = stack.o
+
+OBJDIR = obj
+
+OBJ =  $(OBJDIR)/lzw.o
+OBJ += $(OBJDIR)/dictionary.o
+OBJ += $(OBJDIR)/triple.o
+OBJ += $(OBJDIR)/stack.o # to be removed TODO
+OBJ += $(OBJDIR)/tools.o
 
 EXE = lzw
 
-TESTCASE = f.txt
+all: $(OBJDIR) $(EXE)
 
-all: $(EXE)
-
-$(EXE): main.c $(LZWFUNC) $(STACK)
+$(EXE): main.c $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(LZWFUNC): lzw.c lzw.h
-	$(CC) $(CFLAGS) -c $<
+$(OBJDIR)/%.o: %.c %.h
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-$(STACK): stack.c stack.h
-	$(CC) $(CFLAGS) -c $<
+$(OBJDIR):
+	@mkdir $@
 
 clean:
 	rm -f *.o $(EXE) *.lzw *.unlzw
-	rm -rf $(EXE).dSYM
-
-test: $(EXE)
-	@./$(EXE) e $(TESTCASE)
-	@./$(EXE) d $(TESTCASE).lzw
-	@test `shasum $(TESTCASE)` -eq `shasum $(TESTCASE).lzw.unlzw` && echo Success! || echo Failed.
+	rm -rf $(EXE).dSYM $(OBJDIR)
