@@ -37,27 +37,19 @@ dict_add_entry(dictionary *dict, char s[], int length)
     dict->size += 1;
 }
 
-dictionary *
-dict_create(void)
+void
+dict_init(dictionary *dict)
 {
-    dictionary *dict;
-    dict = (dictionary *)malloc(sizeof(dictionary));
     dict->size = 0;
-
-    return dict;
 }
 
 void
-dict_free(dictionary **dict)
+dict_free(dictionary *dict)
 {
-    printf("\n%d entries\n", (*dict)->size);
+    printf("\n%d entries\n", dict->size);
 
-    for (int i = 0; i < (*dict)->size; i++)
+    for (int i = 0; i < dict->size; i++)
     {
-        free((*dict)->items[i]);
+        free(dict->items[i]);
     }
-
-    free(*dict);
-
-    *dict = NULL;
 }

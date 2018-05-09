@@ -3,7 +3,6 @@
 #include "lzw.h"
 
 #include "tools.h"
-#include "stack.h"
 #include "triple.h"
 #include "dictionary.h"
 
@@ -17,12 +16,13 @@ lzw_encode(FILE *dst, FILE *src)
 
     int last_index = -1;
 
-    dictionary *dict = dict_create();
+    dictionary dict;
+    dict_init(&dict);
 
     // Consider no trailing value
+    // TODO manage this another way
     fputc(0, dst);
 
-    // TODO eventually use _unlocked variants of fgetc
     while (c = fgetc(src), c != EOF)
     {
         // Move next char to end of string
@@ -32,7 +32,7 @@ lzw_encode(FILE *dst, FILE *src)
         s[length] = (char)c;
         s[++length] = '\0';
 
-        int index = dict_search(dict, s, length);
+        int index = dict_search(&dict, s, length);
 
         if (index == -1)
         {
@@ -40,7 +40,7 @@ lzw_encode(FILE *dst, FILE *src)
             emit_code(dst, src, last_index);
 
             // Add to dict
-            dict_add_entry(dict, s, length);
+            dict_add_entry(&dict, s, length);
 
             // Reset char sequence
             s[0] = (char)c;
@@ -104,103 +104,28 @@ lzw_encode_no_compression(FILE *dst, FILE *src)
 }
 
 void
-decode_lzw(FILE *dst, FILE *src)
-{
-    char s[BUFSIZ] = "";
-    int length = 0;
-
-    triple t;
-    int twoints[2];
-
-    stack st = NULL;
-
-    dictionary *dict = dict_create();
-
-    size_t nbread;
-
-    while (nbread = fread(t, sizeof(triple), 1, src), nbread > 0)
-    {
-        // Put read values in the stack
-        triple_decode(t, &twoints[0], &twoints[1]);
-        push(twoints[1], &st);
-        push(twoints[0], &st);
-
-        printf("[+] Decoding triple: %d %d\n", twoints[0], twoints[1]);
-
-        // Get values from the stack as long as they exist
-        while (st)
-        {
-            print_stack(st);
-            unsigned char c;
-            int v = pop(&st);
-            printf("[*] Next value: %d\t\t", v);
-
-            // Unpack dictionary values if v is not a char
-            if (v > 255)
-            {
-                printf("\n\t-> Unpacking into ");
-                assert(v - 256 < dict->size);
-                int len = strlen(dict->items[v - 256]);
-
-                // Place the characters
-                while (--len > 0)
-                {
-                    printf("%d ", dict->items[v - 256][len]);
-                    push((int)dict->items[v - 256][len], &st);
-                }
-
-                printf("%d ", dict->items[v - 256][0]);
-                c = dict->items[v - 256][0];
-            }
-            else
-            {
-                c = v;
-            }
-
-            fputc(c, dst);
-            printf("'%c'\n", c);
-
-            s[length] = c;
-            s[++length] = '\0';
-
-            int index = dict_search(dict, s, length);
-
-            if (index == -1)
-            {
-                dict_add_entry(dict, s, length);
-
-                s[0] = c;
-                s[1] = 0;
-                length = 1;
-            }
-        }
-    }
-
-    dict_free(&dict);
-}
-
-void
 lzw_decode(FILE *dst, FILE *src)
 {
     int c; // An integer so it handles EOF
     char s[BUFSIZ];
     int length = 0;
 
-    dictionary *dict = dict_create();
+    dictionary dict;
+    dict_init(dict);
 
     // Get then write decoded characters
-    while (c = next_char_stream(src, dict), c != EOF)
+    while (c = next_char(src, &dict), c != EOF)
     {
         fputc(c, dst);
 
         s[length] = c;
         s[++length] = '\0';
 
-        int index = dict_search(dict, s, length);
+        int index = dict_search(&dict, s, length);
 
         if (index == -1)
         {
-            dict_add_entry(dict, s, length);
+            dict_add_entry(&dict, s, length);
 
             s[0] = c;
             s[1] = '\0';
@@ -211,123 +136,8 @@ lzw_decode(FILE *dst, FILE *src)
     dict_free(&dict);
 }
 
-int // int because EOF is not a char
+int
 next_char(FILE *src, dictionary *dict)
-{
-    static stack st;
-    static triple t;
-    static int ints[2];
-    static size_t nb_read;
-
-    // Exhaust the stack first
-    if (!is_empty(st)) return pop(&st);
-
-    // Load next triple in file
-    nb_read = fread(t, sizeof(triple), 1, src);
-
-    // Nothing being read means the file is exhausted
-    if (nb_read == 0) return EOF;
-
-    // Read values in the triple
-    triple_decode(t, &ints[0], &ints[1]);
-
-    // Push values to the stack
-    for (int i = 0; i < 2; i++)
-    {
-        int x = ints[i];
-
-        // Check if value is a char or a dict key
-        if (x > 255)
-        {
-            int index = x - 256;
-
-            // Push all characters from the dict item
-            for (int j = dict->items_lengths[index] - 1; j >= 0; j--)
-            {
-                push(dict->items[index][j], &st);
-            }
-        }
-        else
-        {
-            // Push char to stack
-            push(x, &st);
-        }
-    }
-
-    return pop(&st);
-}
-
-int
-next_char_no_stack(FILE *src, dictionary *dict)
-{
-    enum state { LZW_EMPTY, LZW_FROM_DICT, LZW_FROM_TRIPLE };
-    static enum state current_state;
-
-    static triple t;
-    static int ints[2];
-    static int i, j;
-    static char *word;
-
-    // Manage empty buffer
-    if (current_state == LZW_EMPTY)
-    {
-        // Read from file
-        int nbread = fread(t, sizeof(triple), 1, src);
-
-        // Check reading success
-        if (nbread == 0)
-        {
-            return EOF;
-        }
-
-        i = 0;
-        triple_decode(t, &ints[0], &ints[1]);
-        current_state = LZW_FROM_TRIPLE;
-    }
-
-    // Read the triple decoded from src
-    if (current_state == LZW_FROM_TRIPLE)
-    {
-        // Check ints[i] is a character
-        if (ints[i] < 256)
-        {
-            // Get ready to read next triple if necessary
-            if (i == 1)
-            {
-                current_state = LZW_EMPTY;
-            }
-
-            /* printf("%d", ints[i]); */
-            return ints[i++];
-        }
-
-        // ints[i] is a dictionary key
-        /* printf("dict->%d", ints[i]); */
-        word = dict->items[ints[i++] - 256];
-        current_state = LZW_FROM_DICT;
-    }
-
-    // Read characters from a dictionary word
-    if (current_state == LZW_FROM_DICT)
-    {
-        // Check if the end of the word is reached
-        if (j < dict->items_lengths[ints[i]])
-        {
-            return word[j++];
-        }
-        else
-        {
-            j = 0;
-            current_state = (i < 2) ? LZW_FROM_TRIPLE : LZW_EMPTY;
-        }
-    }
-
-    // Nothing has been returned, force next iteration
-    return next_char_no_stack(src, dict);
-}
-
-int
-next_char_stream(FILE *src, dictionary *dict)
 {
     // Unpack values from triple (and eventually dictionary) and push them to src
     static int has_trailing = -1;
@@ -376,6 +186,7 @@ next_char_stream(FILE *src, dictionary *dict)
     }
 
 exhaust:
+    // Send next character in the stream
     queued--;
     return fgetc(src);
 }
