@@ -1,5 +1,13 @@
+# Binary objects
 *.o
 *.dSYM
+
+# Project-dependent
 lzw
 *.lzw
 *.unlzw
+
+# gtags
+GPATH
+GTAGS
+GRTAGS
