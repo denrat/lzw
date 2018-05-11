@@ -21,8 +21,8 @@ main(int argc, char *argv[])
     {
         src = fopen(argv[2], "r");
         dst = fopen(strcat(argv[2], ".lzw"), "w");
-        /* lzw_encode_no_compression(dst, src); */
-        lzw_encode(dst, src);
+        lzw_encode_no_compression(dst, src);
+        /* lzw_encode(dst, src); */
     }
     else if (!strcmp("d", argv[1]) || !strcmp("decode", argv[1]))
     {

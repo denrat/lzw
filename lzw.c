@@ -12,22 +12,16 @@ lzw_encode(FILE *dst, FILE *src)
     char s[BUFSIZ] = "";
     int c = 0; // An int so it handles EOF
     int length = 0;
-    off_t src_size = 0;
 
     int last_index = -1;
 
     dictionary dict;
     dict_init(&dict);
 
-    // Consider no trailing value
-    // TODO manage this another way
-    fputc(0, dst);
-
     while (c = fgetc(src), c != EOF)
     {
         // Move next char to end of string
         fputc(c, stdout);
-        src_size++;
 
         s[length] = (char)c;
         s[++length] = '\0';
@@ -55,16 +49,6 @@ lzw_encode(FILE *dst, FILE *src)
         }
     }
 
-    // Add trailing character if necessary
-    if (src_size % 2 == 1)
-    {
-        emit_code(dst, src, 0);
-
-        // Update dst to show there is a trailing zero
-        rewind(dst);
-        fputc(1, dst);
-    }
-
     dict_free(&dict);
 }
 
@@ -72,34 +56,32 @@ void
 lzw_encode_no_compression(FILE *dst, FILE *src)
 {
     //
-    // Let's try with compression but no dictionary
+    // Let's try with compression (=triple) but no dictionary
     //
 
     // An int char so it handles EOF (i.e. -1)
-    int c = 0;
+    int c;
+    int prev_code;
+    unsigned counter = 0;
 
-    off_t src_size = 0;
-
-    // Consider no trailing value
-    fputc(0, dst);
-
-    // TODO eventually use _unlocked variants of fgetc
     while (c = fgetc(src), c != EOF)
     {
         fputc(c, stdout);
         emit_code(dst, src, c);
+        prev_code = c;
 
-        src_size++;
+        counter++;
     }
 
-    // Add trailing character if necessary
-    if (src_size % 2 == 1)
+    if (counter % 2 == 1)
     {
-        emit_code(dst, src, 0);
-
-        // Update dst to show there is a trailing zero
-        rewind(dst);
-        fputc(1, dst);
+        // `emit_code' won't have enough codes to append it to file
+        // Append raw code as a short
+        short shortcode = prev_code;
+        printf("Appending raw code %d\n", (int)shortcode);
+        fwrite(&shortcode, sizeof(short), 1, dst);
+        /* short shortcode = code; */
+        /* fwrite(&shortcode, sizeof(short), 1, dst); */
     }
 }
 
@@ -111,7 +93,7 @@ lzw_decode(FILE *dst, FILE *src)
     int length = 0;
 
     dictionary dict;
-    dict_init(dict);
+    dict_init(&dict);
 
     // Get then write decoded characters
     while (c = next_char(src, &dict), c != EOF)
@@ -139,35 +121,50 @@ lzw_decode(FILE *dst, FILE *src)
 int
 next_char(FILE *src, dictionary *dict)
 {
-    // Unpack values from triple (and eventually dictionary) and push them to src
-    static int has_trailing = -1;
+    // Unpack values from triple (and possibly dictionary) and push them to src
     static int queued;
     static triple t;
-    static int tbuf[2];
+    static int buf[2];
+    static int imax = 1;
+    static size_t trsize = sizeof(triple);
 
     // Exhaust previously pushed characters
     if (queued) goto exhaust;
 
-    // First iteration: determine whether to expect a trailing zero
-    // TODO maybe append raw character to file instead: fread and feof will allow to test trailing characters presence anyway
-    if (has_trailing < 0) has_trailing = fgetc(src);
+    // Read triple or consider it as trailing values
+    size_t nbread = fread(t, 1, trsize, src);
+    if (nbread == trsize)
+    {
+        // Unpack triple into the buffer
+        triple_decode(t, &buf[0], &buf[1]);
+    }
+    else if (nbread > 0)
+    {
+        // Not enough values to constitute a triple have been read
+        short s;
 
-    // Try to read triple from file
-    if (!fread(t, sizeof(triple), 1, src)) return EOF;
-    triple_decode(t, &tbuf[0], &tbuf[1]);
+        // Read the misread value
+        fseek(src, (long)(-nbread), SEEK_CUR);
+        fread(&s, nbread, 1, src);
+
+        // Prepare buffer for reading
+        buf[0] = s;
+
+        // Restrain reading of buffer
+        imax--;
+    }
+    else
+    {
+        // No more values to read
+        return EOF;
+    }
 
     // Unpack values from buffer
-    for (int i = 1; i >= 0; i--)
+    for (int i = imax; i >= 0; i--)
     {
-        int v = tbuf[i];
+        int v = buf[i];
 
-        // Push back character(s) to stream
-        if (v == LZW_TRAILING && feof(src) && i == 1 && has_trailing)
-        {
-            // Discard trailing value
-            continue;
-        }
-        else if (v < 256)
+        if (v < 256)
         {
             // Push simple character to the stream
             queued++;
