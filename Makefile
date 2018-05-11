@@ -8,7 +8,6 @@ OBJDIR = obj
 OBJ =  $(OBJDIR)/lzw.o
 OBJ += $(OBJDIR)/dictionary.o
 OBJ += $(OBJDIR)/triple.o
-OBJ += $(OBJDIR)/stack.o # to be removed TODO
 OBJ += $(OBJDIR)/tools.o
 
 EXE = lzw
@@ -23,6 +22,19 @@ $(OBJDIR)/%.o: %.c %.h
 
 $(OBJDIR):
 	@mkdir $@
+
+testenc: $(EXE)
+	./lzw e f.txt
+
+testdec: $(EXE)
+	./lzw d f.txt.lzw
+
+testall: testenc testdec
+	@if [[ `md5 -q f.txt` == `md5 -q f.txt.lzw.unlzw` ]];\
+		then echo 'Checksums match!';\
+		else echo 'Mismatching files.';\
+		exit 1;\
+	fi
 
 clean:
 	rm -f *.o $(EXE) *.lzw *.unlzw
