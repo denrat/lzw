@@ -39,3 +39,5 @@ testall: testenc testdec
 clean:
 	rm -f *.o $(EXE) *.lzw *.unlzw
 	rm -rf $(EXE).dSYM $(OBJDIR)
+
+.PHONY: all clean testenc testdec testall
