@@ -29,7 +29,10 @@ dict_add_entry(dictionary *dict, char s[], int length)
 {
     char *entry = malloc(length * sizeof(char));
     strncpy(entry, s, length);
+
+#ifdef DEBUG
     printf("%d\t\"%s\"\t(%d)\n", dict->size + 256, s, length);
+#endif
 
     dict->items[dict->size] = entry;
     dict->items_lengths[dict->size] = length;
@@ -46,7 +49,9 @@ dict_init(dictionary *dict)
 void
 dict_free(dictionary *dict)
 {
+#ifdef DEBUG
     printf("\n%d entries\n", dict->size);
+#endif
 
     for (int i = 0; i < dict->size; i++)
     {
