@@ -10,6 +10,7 @@ OBJ =  $(OBJDIR)/lzw.o
 OBJ += $(OBJDIR)/dictionary.o
 OBJ += $(OBJDIR)/triple.o
 OBJ += $(OBJDIR)/tools.o
+OBJ += $(OBJDIR)/arguments.o
 
 EXE = lzw
 

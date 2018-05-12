@@ -3,44 +3,25 @@
 #include <assert.h>
 
 #include "lzw.h"
-
 #include "tools.h"
-
-#define DOUZE 0b111111111111
-
-// TODO allow several options, such as a verbose mode, inspired by `tar'
+#include "arguments.h"
 
 int
 main(int argc, char *argv[])
 {
-    assert(argc == 3);
-
+    struct args args;
     FILE *dst, *src;
 
-    if (!strcmp("e", argv[1]) || !strcmp("encode", argv[1]))
-    {
-        src = fopen(argv[2], "r");
-        dst = fopen(strcat(argv[2], ".lzw"), "w");
-        lzw_encode_no_compression(dst, src);
-        /* lzw_encode(dst, src); */
-    }
-    else if (!strcmp("d", argv[1]) || !strcmp("decode", argv[1]))
-    {
-        src = fopen(argv[2], "r");
-        dst = fopen(strcat(argv[2], ".unlzw"), "w");
-        lzw_decode(dst, src);
-    }
-    else
-    {
-        puts("Invalid arguments.");
-        puts("\tUsage: lzw COMMAND FILENAME");
-        puts("\t\twhere COMMAND is encode (e) or decode (d)");
+    args = parse_args(argc, argv);
 
-        return EXIT_FAILURE;
-    }
+    dst = (args.modes & STDOUT_MODE) ? stdout : fopen(args.output, "w");
+    src = fopen(args.input, "r");
 
-    fclose(src);
+    if (args.modes & ENCODE_MODE) lzw_encode(dst, src);
+    else lzw_decode(dst, src);
+
     fclose(dst);
+    fclose(src);
 
     return EXIT_SUCCESS;
 }
