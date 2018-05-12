@@ -6,7 +6,7 @@ dict_search(dictionary *dict, char el[], int length)
     static int index;
 
     // Check if string only has one character
-    if (el[1] == 0)
+    if (el[1] == '\0')
     {
         return (int)el[0];
     }
@@ -29,7 +29,7 @@ dict_add_entry(dictionary *dict, char s[], int length)
 {
     char *entry = malloc(length * sizeof(char));
     strncpy(entry, s, length);
-    printf("%d\t\"%s\"\n", dict->size + 256, s);
+    printf("%d\t\"%s\"\t(%d)\n", dict->size + 256, s, length);
 
     dict->items[dict->size] = entry;
     dict->items_lengths[dict->size] = length;

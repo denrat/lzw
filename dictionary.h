@@ -14,6 +14,7 @@
 
 #define DOUZE 0b111111111111
 #define DICT_MAX_SIZE (DOUZE - 255)
+#define DICT_NOT_FOUND (-1)
 
 typedef struct {
     char *items[DICT_MAX_SIZE];
