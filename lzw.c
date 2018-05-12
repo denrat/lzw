@@ -9,79 +9,60 @@
 void
 lzw_encode(FILE *dst, FILE *src)
 {
-    char s[BUFSIZ] = "";
-    int c = 0; // An int so it handles EOF
-    int length = 0;
+    int c; // An integer so it handles EOF
 
-    int last_index = -1;
+    // A string/buffer to contain the dictionary values
+    char s[BUFSIZ];
+    int length = 0;
 
     dictionary dict;
     dict_init(&dict);
 
+    // Keep track of the dictionary indexes
+    int index, prev_index;
+
+    // Keep track of trailing character
+    bool has_trailing = false;
+
+    // Read byte by byte
     while (c = fgetc(src), c != EOF)
     {
-        // Move next char to end of string
-        fputc(c, stdout);
-
-        s[length] = (char)c;
+        // Add character to buffer
+        s[length] = c;
         s[++length] = '\0';
 
-        int index = dict_search(&dict, s, length);
+        // Dictionary lookup
+        index = dict_search(&dict, s, length);
 
-        if (index == -1)
+        if (index == DICT_NOT_FOUND)
         {
-            // Emit code of known string or char
-            emit_code(dst, src, last_index);
+            // Prepare code for packing
+            emit_code(dst, src, prev_index);
 
-            // Add to dict
+            // Add new (unknown) value to dictionary
             dict_add_entry(&dict, s, length);
 
-            // Reset char sequence
-            s[0] = (char)c;
+            // Reset buffer
+            s[0] = c;
             s[1] = '\0';
             length = 1;
-            last_index = (int)c;
+
+            prev_index = (int)c;
         }
         else
         {
-            last_index = index;
-            length++;
+            prev_index = index;
         }
+
+        has_trailing ^= 1; // Negate the value
     }
 
-    dict_free(&dict);
-}
-
-void
-lzw_encode_no_compression(FILE *dst, FILE *src)
-{
-    //
-    // Let's try with compression (=triple) but no dictionary
-    //
-
-    // An int char so it handles EOF (i.e. -1)
-    int c;
-    int prev_code;
-    unsigned counter = 0;
-
-    while (c = fgetc(src), c != EOF)
-    {
-        fputc(c, stdout);
-        emit_code(dst, src, c);
-        prev_code = c;
-
-        counter++;
-    }
-
-    if (counter % 2 == 1)
+    if (has_trailing)
     {
         // `emit_code' won't have enough codes to append it to file
         // Append raw code as a short
-        short shortcode = prev_code;
-        printf("Appending raw code %d\n", (int)shortcode);
+        short shortcode = prev_index;
         fwrite(&shortcode, sizeof(short), 1, dst);
-        /* short shortcode = code; */
-        /* fwrite(&shortcode, sizeof(short), 1, dst); */
     }
 }
 
@@ -89,9 +70,11 @@ void
 lzw_decode(FILE *dst, FILE *src)
 {
     int c; // An integer so it handles EOF
+
     char s[BUFSIZ];
     int length = 0;
 
+    int code;
     dictionary dict;
     dict_init(&dict);
 
@@ -103,9 +86,9 @@ lzw_decode(FILE *dst, FILE *src)
         s[length] = c;
         s[++length] = '\0';
 
-        int index = dict_search(&dict, s, length);
+        code = dict_search(&dict, s, length);
 
-        if (index == -1)
+        if (code == DICT_NOT_FOUND)
         {
             dict_add_entry(&dict, s, length);
 
@@ -174,7 +157,7 @@ next_char(FILE *src, dictionary *dict)
         {
             // Read dictionary value and push it back in the stream
             int dkey = v - 256;
-            for (int j = dict->items_lengths[dkey]; j >= 0; j--)
+            for (int j = dict->items_lengths[dkey] - 1; j >= 0; j--)
             {
                 queued++;
                 ungetc(dict->items[dkey][j], src);
