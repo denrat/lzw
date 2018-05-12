@@ -5,7 +5,6 @@ CC = clang
 CFLAGS = -Wall -std=c99 -g
 
 OBJDIR = obj
-
 OBJ =  $(OBJDIR)/lzw.o
 OBJ += $(OBJDIR)/dictionary.o
 OBJ += $(OBJDIR)/triple.o
@@ -35,22 +34,18 @@ $(TESTFILE).lzw: $(EXE) $(TESTFILE)
 $(TESTFILE).lzw.unlzw: $(EXE) $(TESTFILE).lzw
 	./lzw d $(TESTFILE).lzw > /dev/null
 
-testenc: $(TESTFILE).lzw
+test: $(EXE) $(TESTFILE) $(TESTFILE).lzw.unlzw
+	@if [[ `md5 -q $(TESTFILE)` == `md5 -q $(TESTFILE).lzw.unlzw` ]]; then\
+		echo "Checksums match!";\
+	else\
+		echo "Checksums don\'t match, compression failed." && exit 1;\
+	fi
 
-testdec: $(TESTFILE).lzw.unlzw
-
-testall: all $(TESTFILE) $(TESTFILE).lzw.unlzw | silent
-ifeq ($(shell md5 -q $(TESTFILE)),$(shell md5 -q $(TESTFILE).lzw.unlzw))
-	$(info Checksums match!)
-else
-	$(warning Checksums don’t match, lossless compression failed.)
-endif
-
-clean:
-	rm -f *.o $(EXE) *.lzw *.unlzw
+clean: cleantest
+	rm -f *.o $(EXE)
 	rm -rf $(EXE).dSYM $(OBJDIR)
 
-silent:
-	@:
+cleantest:
+	rm -f *.lzw *.unlzw
 
-.PHONY: all clean testenc testdec testall silent
+.PHONY: all clean test cleantest
