@@ -1,6 +1,8 @@
+# Environment
 SHELL = bash
 PWD = $(shell pwd)
 
+# Compilation
 CC = clang
 CFLAGS = -Wall -std=c99 -g
 
@@ -13,11 +15,18 @@ OBJ += $(OBJDIR)/arguments.o
 
 EXE = lzw
 
+# Tests
 ifndef TESTFILE
 TESTFILE = f.txt
 endif
 
+.PHONY: all clean test cleantest
+
 all: $(EXE)
+
+#
+# Binary
+#
 
 $(EXE): main.c $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -28,18 +37,26 @@ $(OBJDIR)/%.o: %.c %.h | $(OBJDIR)
 $(OBJDIR):
 	@mkdir $@
 
+#
+# Tests
+#
+
 $(TESTFILE).lzw: $(EXE) $(TESTFILE)
 	./lzw e $(TESTFILE) > /dev/null
 
 $(TESTFILE).lzw.unlzw: $(EXE) $(TESTFILE).lzw
 	./lzw d $(TESTFILE).lzw > /dev/null
 
-test: $(EXE) $(TESTFILE) $(TESTFILE).lzw.unlzw
+test: cleantest $(EXE) $(TESTFILE) $(TESTFILE).lzw.unlzw
 	@if [[ `md5 -q $(TESTFILE)` == `md5 -q $(TESTFILE).lzw.unlzw` ]]; then\
 		echo "Checksums match!";\
 	else\
 		echo "Checksums don\'t match, compression failed." && exit 1;\
 	fi
+
+#
+# Clean
+#
 
 clean: cleantest
 	rm -f *.o $(EXE)
@@ -47,5 +64,3 @@ clean: cleantest
 
 cleantest:
 	rm -f *.lzw *.unlzw
-
-.PHONY: all clean test cleantest
