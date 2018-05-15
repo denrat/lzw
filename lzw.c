@@ -18,8 +18,8 @@ lzw_encode(FILE *dst, FILE *src)
     dictionary dict;
     dict_init(&dict);
 
-    // Keep track of the dictionary indexes
-    int index, prev_index;
+    // Keep track of the dictionary codes
+    int code, prev_code;
 
     // Keep track of trailing character
     bool has_trailing = false;
@@ -32,12 +32,12 @@ lzw_encode(FILE *dst, FILE *src)
         s[++length] = '\0';
 
         // Dictionary lookup
-        index = dict_search(&dict, s, length);
+        code = dict_search(&dict, s, length);
 
-        if (index == DICT_NOT_FOUND)
+        if (code == DICT_NOT_FOUND)
         {
             // Prepare code for packing
-            emit_code(dst, src, prev_index);
+            emit_code(dst, src, prev_code);
 
             // Add new (unknown) value to dictionary
             dict_add_entry(&dict, s, length);
@@ -47,11 +47,11 @@ lzw_encode(FILE *dst, FILE *src)
             s[1] = '\0';
             length = 1;
 
-            prev_index = (int)c;
+            prev_code = (int)c;
         }
         else
         {
-            prev_index = index;
+            prev_code = code;
         }
 
         has_trailing ^= 1; // Negate the value
@@ -61,7 +61,7 @@ lzw_encode(FILE *dst, FILE *src)
     {
         // `emit_code' won't have enough codes to append it to file
         // Append raw code as a short
-        short shortcode = prev_index;
+        short shortcode = prev_code;
         fwrite(&shortcode, sizeof(short), 1, dst);
     }
 }

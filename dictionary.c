@@ -21,18 +21,18 @@ dict_search(dictionary *dict, char el[], int length)
         }
     }
 
-    return -1; // Not found
+    return DICT_NOT_FOUND;
 }
 
 void
 dict_add_entry(dictionary *dict, char s[], int length)
 {
+    if (dict->size >= DICT_MAX_SIZE) return;
+
     char *entry = malloc(length * sizeof(char));
     strncpy(entry, s, length);
 
-#ifdef DEBUG
     printf("%d\t\"%s\"\t(%d)\n", dict->size + 256, s, length);
-#endif
 
     dict->items[dict->size] = entry;
     dict->items_lengths[dict->size] = length;
