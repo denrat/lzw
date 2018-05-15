@@ -12,50 +12,66 @@ parse_args(int argc, char *argv[])
     args.modes = 0;
 
     // Check whether to print help
-    if (argc == 1) print_help(EXIT_FAILURE);
+    if (argc == 1) print_help(argv[0], EXIT_FAILURE);
 
+    // Parse first argument
     if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
     {
-        print_help(EXIT_SUCCESS);
+        // Help asked
+        print_help(argv[0], EXIT_SUCCESS);
     }
-
-    if (!strcmp(argv[1], "e") || !strcmp(argv[1], "encode")
+    else if (!strcmp(argv[1], "e") || !strcmp(argv[1], "encode")
             || !strcmp(argv[1], "d") || !strcmp(argv[1], "decode"))
     {
-        if (argc == 1) print_help(EXIT_FAILURE);
+        // Too few args supplied
+        if (argc == 2) print_help(argv[0], EXIT_FAILURE);
 
+        // Determine action to carry out
         args.modes |= (argv[1][0] == 'e') ? ENCODE_MODE : DECODE_MODE;
         args.input = argv[2];
+    }
+    else
+    {
+        // Neither -h, --help, e[ncode] or d[ecode]
+        print_help(argv[0], EXIT_FAILURE);
     }
 
     if (argc < 4)
     {
+        // Define name of the file
         char *fmt = (args.modes & ENCODE_MODE) ? "%s.lzw" : "%s.unlzw";
         asprintf(&args.output, fmt, args.input);
     }
     else if (!strcmp(argv[3], "--to-stdout"))
     {
-        if (argc > 4) print_help(EXIT_FAILURE);
+        // Too many args supplied
+        if (argc > 4) print_help(argv[0], EXIT_FAILURE);
 
         args.modes |= STDOUT_MODE;
     }
     else if (!strcmp(argv[3], "-o") || !strcmp(argv[3], "--output"))
     {
-        if (argc < 5) print_help(EXIT_FAILURE);
+        if (argc < 5) print_help(argv[0], EXIT_FAILURE);
 
         args.output = argv[4];
     }
     else
     {
-        print_help(EXIT_FAILURE);
+        print_help(argv[0], EXIT_FAILURE);
     }
 
     return args;
 }
 
 void
-print_help(int exit_code)
+print_help(char cliname[], int exit_code)
 {
-    printf("help page here\n");
+    printf("Usage:\n");
+    printf("\tCompress/decompress file\n");
+    printf("\t\t%s COMMAND FILE\n", cliname);
+    printf("\tCompress/decompress file, specifying name in output\n");
+    printf("\t\t%s COMMAND FILE (-o|--output) FILEOUT\n", cliname);
+    printf("\tCompress/decompress file, sending the processed data to stdout\n");
+    printf("\t\t%s COMMAND FILE --to-stdout\n", cliname);
     exit(exit_code);
 }
