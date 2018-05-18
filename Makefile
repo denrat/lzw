@@ -5,6 +5,11 @@ PWD = $(shell pwd)
 # Compilation
 CC = clang
 CFLAGS = -Wall -std=c99 -g
+CFLAGS += -O3
+
+ifdef DEBUG
+CFLAGS += -DDEBUG
+endif
 
 OBJDIR = obj
 OBJ =  $(OBJDIR)/lzw.o
@@ -42,10 +47,10 @@ $(OBJDIR):
 #
 
 $(TESTFILE).lzw: $(EXE) $(TESTFILE)
-	./lzw e $(TESTFILE) > /dev/null
+	./lzw e $(TESTFILE)
 
 $(TESTFILE).lzw.unlzw: $(EXE) $(TESTFILE).lzw
-	./lzw d $(TESTFILE).lzw > /dev/null
+	./lzw d $(TESTFILE).lzw
 
 test: cleantest $(EXE) $(TESTFILE) $(TESTFILE).lzw.unlzw
 	@if [[ `md5 -q $(TESTFILE)` == `md5 -q $(TESTFILE).lzw.unlzw` ]]; then\
