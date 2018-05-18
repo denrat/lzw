@@ -15,6 +15,7 @@ struct args
 };
 
 struct args parse_args(int, char *[]);
+void clean_args(struct args *);
 void print_help(char *, int);
 
 #endif /* _ARGUMENTS_H */

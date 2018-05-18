@@ -64,6 +64,13 @@ parse_args(int argc, char *argv[])
 }
 
 void
+clean_args(struct args *args)
+{
+    // asprintf requires freeing
+    free(args->output);
+}
+
+void
 print_help(char cliname[], int exit_code)
 {
     printf("Usage:\n");
