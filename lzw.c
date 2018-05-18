@@ -73,8 +73,9 @@ lzw_encode(FILE *dst, FILE *src)
         emit_code(dst, src, prev_code);
     }
 
-    // FIXME valgrind finds a memory leak here
-    /* printf("%lld emitted\n", emitted); */
+#ifdef DEBUG
+    printf("%lld emitted\n", emitted);
+#endif
 
     dict_free(&dict);
 }

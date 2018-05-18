@@ -40,8 +40,9 @@ dict_add_entry(dictionary *dict, char s[], int length)
     char *entry = malloc(length * sizeof(char));
     strncpy(entry, s, length);
 
-    // FIXME valgring finds a memory leak here
+#ifdef DEBUG
     printf("%d\t\"%s\"\t(%d)\n", dict->size + 256, s, length);
+#endif
 
     if (reset) free(dict->items[dict->size]);
     dict->items[dict->size] = entry;

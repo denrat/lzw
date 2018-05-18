@@ -14,6 +14,10 @@ emit_code(FILE *dst, FILE *src, int code)
     // Store code to be written
     codebuf[count++] = code;
 
+#ifdef DEBUG
+    printf("emit %d\n", code);
+#endif
+
     if (count == 2)
     {
         // Buffer is full, encode values and write to dst
