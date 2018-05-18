@@ -24,6 +24,8 @@ lzw_encode(FILE *dst, FILE *src)
     // Keep track of trailing character
     bool has_trailing = false;
 
+    // DEBUG FIXME
+    long long emitted = 0;
     // Read byte by byte
     while (c = fgetc(src), c != EOF)
     {
@@ -38,8 +40,9 @@ lzw_encode(FILE *dst, FILE *src)
         {
             // Prepare code for packing
             emit_code(dst, src, prev_code);
+            emitted++;
 
-            // Add new (unknown) value to dictionary
+            // Add new value to dictionary
             dict_add_entry(&dict, s, length);
 
             // Reset buffer
@@ -64,6 +67,16 @@ lzw_encode(FILE *dst, FILE *src)
         short shortcode = prev_code;
         fwrite(&shortcode, sizeof(short), 1, dst);
     }
+    else
+    {
+        // Even number of codes, emit prev_code
+        emit_code(dst, src, prev_code);
+    }
+
+    // FIXME valgrind finds a memory leak here
+    /* printf("%lld emitted\n", emitted); */
+
+    dict_free(&dict);
 }
 
 void
@@ -104,15 +117,95 @@ lzw_decode(FILE *dst, FILE *src)
 int
 next_char(FILE *src, dictionary *dict)
 {
+    static int queued;
+    static triple t;
+    static int buf[2];
+    static int bufpos = 2, bufpos_max = 1;
+    static int v;
+    static size_t trsize = sizeof(triple);
+    static size_t nbread;
+
+    if (queued) goto exhaust;
+    if (bufpos <= bufpos_max) goto read_code;
+
+    nbread = fread(t, 1, trsize, src);
+    if (nbread == trsize) // Full triple read
+    {
+        triple_decode(t, &buf[0], &buf[1]);
+        bufpos = 0;
+    }
+    else if (nbread > 0) // Not enough bytes for a triple
+    {
+        short s;
+
+        // Read the misread value
+        fseek(src, (long)(-nbread), SEEK_CUR);
+        fread(&s, nbread, 1, src);
+
+        // Prepare buffer for reading
+        buf[0] = s;
+
+        // Restrain reading of buffer
+        bufpos = 0;
+        bufpos_max--;
+    }
+    else // Nothing left to read
+    {
+        return EOF;
+    }
+
+read_code:
+    v = buf[bufpos++];
+
+    if (v < 256)
+    {
+        return v;
+    }
+    else
+    {
+        int dkey = v - 256;
+        for (int i = dict->items_lengths[dkey] - 1; i > 0; i--)
+        {
+            queued++;
+            ungetc(dict->items[dkey][i], src);
+        }
+
+        return dict->items[dkey][0];
+    }
+
+exhaust:
+    queued--;
+    return fgetc(src);
+}
+
+int
+_next_char(FILE *src, dictionary *dict)
+{
     // Unpack values from triple (and possibly dictionary) and push them to src
     static int queued;
     static triple t;
     static int buf[2];
+    static int bufpos_max = 1;
+    static int bufpos = -1; // Start without going to label read_buf
+    static int v;
     static int imax = 1;
     static size_t trsize = sizeof(triple);
+    static int waiting_dict;
 
     // Exhaust previously pushed characters
     if (queued) goto exhaust;
+
+    if (waiting_dict)
+    {
+        int dkey = buf[--waiting_dict] - 256;
+        for (int j = dict->items_lengths[dkey] - 1; j >= 0; j--)
+        {
+            queued++;
+            ungetc(dict->items[dkey][j], src);
+        }
+
+        goto exhaust;
+    }
 
     // Read triple or consider it as trailing values
     size_t nbread = fread(t, 1, trsize, src);
@@ -120,6 +213,8 @@ next_char(FILE *src, dictionary *dict)
     {
         // Unpack triple into the buffer
         triple_decode(t, &buf[0], &buf[1]);
+
+        bufpos = bufpos_max;
     }
     else if (nbread > 0)
     {
@@ -134,7 +229,8 @@ next_char(FILE *src, dictionary *dict)
         buf[0] = s;
 
         // Restrain reading of buffer
-        imax--;
+        /* imax--; */
+        bufpos_max--;
     }
     else
     {
@@ -143,6 +239,8 @@ next_char(FILE *src, dictionary *dict)
     }
 
     // Unpack values from buffer
+    // FIXME turn the iteration into a call-dependent reading
+    /*
     for (int i = imax; i >= 0; i--)
     {
         int v = buf[i];
@@ -162,6 +260,22 @@ next_char(FILE *src, dictionary *dict)
                 queued++;
                 ungetc(dict->items[dkey][j], src);
             }
+        }
+    }
+    */
+
+    for (int i = imax; i >= 0; i--)
+    {
+        v = buf[bufpos];
+
+        if (v < 256)
+        {
+            queued++;
+            ungetc(v, src);
+        }
+        else
+        {
+            waiting_dict++;
         }
     }
 
