@@ -20,6 +20,7 @@ typedef struct {
     char *items[DICT_MAX_SIZE];
     int items_lengths[DICT_MAX_SIZE];
     int size;
+    int full;
 } dictionary;
 
 int dict_search(dictionary *, char [], int);

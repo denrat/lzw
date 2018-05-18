@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "dictionary.h"
 
 int
@@ -8,7 +10,7 @@ dict_search(dictionary *dict, char el[], int length)
     // Check if string only has one character
     if (el[1] == '\0')
     {
-        return (int)el[0];
+        return (unsigned char)el[0];
     }
 
     // Compare provided word to dict words
@@ -27,13 +29,21 @@ dict_search(dictionary *dict, char el[], int length)
 void
 dict_add_entry(dictionary *dict, char s[], int length)
 {
-    if (dict->size >= DICT_MAX_SIZE) return;
+    static bool reset = false;
+    // FIXME
+    if (dict->size == DICT_MAX_SIZE)
+    {
+        reset = true;
+        dict->size /= 2;
+    }
 
     char *entry = malloc(length * sizeof(char));
     strncpy(entry, s, length);
 
+    // FIXME valgring finds a memory leak here
     printf("%d\t\"%s\"\t(%d)\n", dict->size + 256, s, length);
 
+    if (reset) free(dict->items[dict->size]);
     dict->items[dict->size] = entry;
     dict->items_lengths[dict->size] = length;
 
@@ -44,6 +54,12 @@ void
 dict_init(dictionary *dict)
 {
     dict->size = 0;
+    dict->full = 0;
+    for (int i = 0; i < DICT_MAX_SIZE; i++)
+    {
+        dict->items[i] = NULL;
+        dict->items_lengths[i] = 0;
+    }
 }
 
 void
@@ -53,8 +69,8 @@ dict_free(dictionary *dict)
     printf("\n%d entries\n", dict->size);
 #endif
 
-    for (int i = 0; i < dict->size; i++)
+    for (int i = 0; i < DICT_MAX_SIZE; i++)
     {
-        free(dict->items[i]);
+        if (dict->items[i]) free(dict->items[i]);
     }
 }
