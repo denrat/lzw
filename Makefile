@@ -1,12 +1,11 @@
 # Environment
 SHELL = bash
-PWD = $(shell pwd)
 
 # Compilation
-CC = clang
-CFLAGS = -Wall -std=c99 -g
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99 -g
+CFLAGS += -Wno-unused-result  # Silence ignored `fread' return value
 CFLAGS += -O3
-
 ifdef DEBUG
 CFLAGS += -DDEBUG
 endif
@@ -53,7 +52,7 @@ $(TESTFILE).lzw.unlzw: $(EXE) $(TESTFILE).lzw
 	./lzw d $(TESTFILE).lzw
 
 test: cleantest $(EXE) $(TESTFILE) $(TESTFILE).lzw.unlzw
-	@if [[ `md5 -q $(TESTFILE)` == `md5 -q $(TESTFILE).lzw.unlzw` ]]; then\
+	@if [[ `shasum $(TESTFILE) | cut -d' ' -f1` == `shasum $(TESTFILE).lzw.unlzw | cut -d' ' -f1` ]]; then\
 		echo "Checksums match!";\
 	else\
 		echo "Checksums don\'t match, compression failed." && exit 1;\
