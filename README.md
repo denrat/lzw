@@ -1,3 +1,4 @@
+```
 Usage:
 	Compress/decompress file
 		./lzw COMMAND FILE
@@ -5,3 +6,4 @@ Usage:
 		./lzw COMMAND FILE (-o|--output) FILEOUT
 	Compress/decompress file, sending the processed data to stdout
 		./lzw COMMAND FILE --to-stdout
+```
