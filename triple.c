@@ -1,5 +1,15 @@
 #include "triple.h"
 
+static void
+switch_obfuscation(triple t)
+{
+    // Apply XOR mask to each byte of the triple
+    for (int i = 0; i < sizeof(triple); i++)
+    {
+        t[i] ^= XORKEY;
+    }
+}
+
 void
 triple_encode(triple t, int x, int y)
 {
@@ -20,11 +30,19 @@ triple_encode(triple t, int x, int y)
     t[1] |= (y & mask_y0) >> 8;
     // Store 8 right-most bits from y in the last byte of the triple
     t[2] = y & mask_y1;
+
+    // XOR-obfuscation
+    switch_obfuscation(t);
+
 }
 
 void
 triple_decode(triple t, int *x, int *y)
 {
+    // XOR-deobfuscation
+    switch_obfuscation(t);
+
+    // Unpacking
     *x = (t[0] << 4) | ((t[1] & 0xF0) >> 4);
     *y = t[2] | ((t[1] << 8) & 0xF00);
 }
