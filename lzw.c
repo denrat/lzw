@@ -24,8 +24,9 @@ lzw_encode(FILE *dst, FILE *src)
     // Keep track of trailing character
     bool has_trailing = false;
 
-    // DEBUG FIXME
+#ifdef DEBUG
     long long emitted = 0;
+#endif
     // Read byte by byte
     while (c = fgetc(src), c != EOF)
     {
@@ -39,8 +40,11 @@ lzw_encode(FILE *dst, FILE *src)
         if (code == DICT_NOT_FOUND)
         {
             // Prepare code for packing
-            emit_code(dst, src, prev_code);
+            emit_code(dst, prev_code);
+
+#ifdef DEBUG
             emitted++;
+#endif
 
             // Add new value to dictionary
             dict_add_entry(&dict, s, length);
@@ -70,7 +74,7 @@ lzw_encode(FILE *dst, FILE *src)
     else
     {
         // Even number of codes, emit prev_code
-        emit_code(dst, src, prev_code);
+        emit_code(dst, prev_code);
     }
 
 #ifdef DEBUG

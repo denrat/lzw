@@ -4,7 +4,7 @@ static void
 switch_obfuscation(triple t)
 {
     // Apply XOR mask to each byte of the triple
-    for (int i = 0; i < sizeof(triple); i++)
+    for (int i = 0; i < (int)sizeof(triple); i++)
     {
         t[i] ^= XORKEY;
     }

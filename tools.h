@@ -2,6 +2,6 @@
 #define _TOOLS_H
 
 // Store and get ready to write triple in destination file
-void emit_code(FILE *, FILE *, int);
+void emit_code(FILE *, int);
 
 #endif

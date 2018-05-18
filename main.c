@@ -30,7 +30,7 @@ main(int argc, char *argv[])
 
     clean_args(&args);
 
-    fclose(dst);
+    if (!(args.modes & STDOUT_MODE)) fclose(dst);
     fclose(src);
 
     return EXIT_SUCCESS;

@@ -67,7 +67,10 @@ void
 clean_args(struct args *args)
 {
     // asprintf requires freeing
-    free(args->output);
+    if (!(args->modes & STDOUT_MODE))
+    {
+        free(args->output);
+    }
 }
 
 void

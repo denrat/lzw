@@ -5,7 +5,7 @@
 #include "triple.h"
 
 void
-emit_code(FILE *dst, FILE *src, int code)
+emit_code(FILE *dst, int code)
 {
     static triple t;
     static int codebuf[2];
