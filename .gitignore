@@ -12,3 +12,7 @@ The_Three_Musketeers_by_Alexandre_Dumas.txt
 GPATH
 GTAGS
 GRTAGS
+
+# macOS
+.DS_Store
+*/.DS_Store
